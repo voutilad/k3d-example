@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import socket
-import ssl
 from kafka import KafkaProducer
 
 futures = []
