@@ -1,1 +1,2 @@
-kafka-python==2.0.2
+git+https://github.com/voutilad/kafka-python.git@3d2924d275b01abe50a0bdd4764cb9ae0f93f913
+#kafka-python==2.0.2

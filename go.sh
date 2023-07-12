@@ -101,6 +101,7 @@ docker push "localhost:${PORT}/python-app:latest" > /dev/null
 ### 9. Running our application.
 echo "> Running our app..."
 kubectl run "python-app" \
-	-i --rm=true \
+	-it --rm=true \
         --restart=Never \
-	--image "rp-registry:5000/python-app:latest"
+	--image "rp-registry:5000/python-app:latest" \
+        -- "${TOPIC}"

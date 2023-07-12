@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-
+import socket
+import ssl
 from kafka import KafkaProducer
 
 futures = []
@@ -15,14 +16,19 @@ def produce_messages(producer, topic):
         futures.append(f)
     producer.flush(2)
 
-if __name__ == "__main__":
-    topic = "twitch_chat"
-    producer = KafkaProducer(
-        bootstrap_servers="redpanda.redpanda.svc.cluster.local:9093",
-        security_protocol="SSL",
-        ssl_check_hostname=False,
-        linger_ms=200,
-    )
 
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1:
+        topic = sys.argv[1]
+    else:
+        topic = "twitch_chat"
+
+    print(f"Using topic: {topic}")
+    producer = KafkaProducer(
+        bootstrap_servers="redpanda.redpanda.svc.cluster.local.:9093",
+        security_protocol="SSL",
+        linger_ms=50,
+    )
     produce_messages(producer, topic)
     producer.close(3)

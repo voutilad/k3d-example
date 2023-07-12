@@ -1,6 +1,6 @@
 FROM debian:11-slim
 RUN apt-get update && \
-	apt-get install -y ca-certificates python3 python3-venv && \
+	apt-get install -y git ca-certificates python3 python3-venv && \
 	apt-get -y autoremove && \
 	adduser snek && \
 	mkdir /app && \
