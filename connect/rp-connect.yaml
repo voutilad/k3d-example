@@ -44,7 +44,7 @@ spec:
             - name: CONNECT_LOG_LEVEL
               value: "INFO"
             - name: CONNECT_PLUGIN_PATH
-              value: "/opt/plugins/redpanda-plugins"
+              value: "/opt/plugins/connect-plugins"
           volumeMounts:
             - name: redpanda-default-certs
               mountPath: "/opt/kafka/connect-certs/"
@@ -54,35 +54,26 @@ spec:
               readOnly: true
       initContainers:
         - name: aiven-http-sink-installer
-          image: redpandadata/connectors:latest
+          image: busybox:latest
           env:
             - name: AIVEN_HTTP_SINK_VERSION
               value: 0.6.0
-          command: ["/bin/bash", "-c"]
+          command: ["/bin/sh", "-c"]
           args:
             - |
               set -xe
-              TARGET_DIR="/mnt/plugins/redpanda-plugins"
+              TARGET_DIR="/mnt/plugins/connect-plugins"
 
-              ### Make our plugins directory within our volume and clean it out.
-              mkdir -p "/mnt/plugins/redpanda-plugins"
+              ### Wipe and refresh our Plugins directory.
               rm -Rf "${TARGET_DIR}"
+              mkdir -p "${TARGET_DIR}"
 
-              ### Fetch the HTTP Sink connector from Github
-              ### note: the redpanda connectors image doesn't have tar, but it has unzip!?
-              cd "/tmp"
-              curl -LO "https://github.com/Aiven-Open/http-connector-for-apache-kafka/releases/download/v${AIVEN_HTTP_SINK_VERSION}/http-connector-for-apache-kafka-${AIVEN_HTTP_SINK_VERSION}.zip"
-              unzip "http-connector-for-apache-kafka-${AIVEN_HTTP_SINK_VERSION}.zip"
-              ls -alF
-              mkdir -p "${TARGET_DIR}/http-connector-for-apache-kafka"
-              for _file in $(ls "http-connector-for-apache-kafka-${AIVEN_HTTP_SINK_VERSION}"); do
-                mv -f "http-connector-for-apache-kafka-${AIVEN_HTTP_SINK_VERSION}/${_file}" "${TARGET_DIR}/http-connector-for-apache-kafka"
-              done
+              ### Fetch the HTTP Sink connector from GitHub.
+              wget "https://github.com/Aiven-Open/http-connector-for-apache-kafka/releases/download/v${AIVEN_HTTP_SINK_VERSION}/http-connector-for-apache-kafka-${AIVEN_HTTP_SINK_VERSION}.tar"
+              tar -xf "http-connector-for-apache-kafka-${AIVEN_HTTP_SINK_VERSION}.tar"
 
-              ### Copy any existing connectors from our Redpanda Kafka Connect image.
-              for plugin in $(ls "${CONNECT_HOME}/redpanda-plugins"); do
-                  cp -R "${CONNECT_HOME}/redpanda-plugins/${plugin}" "${TARGET_DIR}"
-              done
+              ### Drop the version number from the directory and shorten the name.
+              mv "http-connector-for-apache-kafka-${AIVEN_HTTP_SINK_VERSION}" "${TARGET_DIR}/http-connector"
           volumeMounts:
             - name: kafka-connect-plugins
               mountPath: "/mnt/plugins"
