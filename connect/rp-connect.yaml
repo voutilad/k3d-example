@@ -15,9 +15,6 @@ spec:
       labels:
         app: redpanda-http-sink-connector
     spec:
-      securityContext:
-        fsGroup: 101
-        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: http-sink-connector
           image: redpandadata/connectors:latest
