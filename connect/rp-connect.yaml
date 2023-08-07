@@ -1,0 +1,102 @@
+# yamllint disable rule:line-length
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda-http-sink-connector
+  namespace: redpanda
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda-http-sink-connector
+  template:
+    metadata:
+      labels:
+        app: redpanda-http-sink-connector
+    spec:
+      securityContext:
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: http-sink-connector
+          image: redpandadata/connectors:latest
+          env:
+            - name: CONNECT_BOOTSTRAP_SERVERS
+              value: "redpanda-0.redpanda.redpanda.svc.cluster.local:9093,redpanda-1.redpanda.redpanda.svc.cluster.local:9093,redpanda-2.redpanda.redpanda.svc.cluster.local:9093"
+            - name: CONNECT_CONFIGURATION
+              value: |
+                connector.client.config.override.policy=All
+                key.converter=org.apache.kafka.connect.converters.ByteArrayConverter
+                value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
+                group.id=connectors-cluster
+                offset.storage.topic=_internal_connectors_offsets
+                config.storage.topic=_internal_connectors_configs
+                status.storage.topic=_internal_connectors_status
+                config.storage.replication.factor=1
+                offset.storage.replication.factor=1
+                status.storage.replication.factor=1
+            - name: CONNECT_ADDITIONAL_CONFIGURATION
+              value: "config.storage.replication.factor=1,offset.storage.replication.factor=1,status.storage.replication.factor=1"
+            - name: CONNECT_TLS_ENABLED
+              value: "true"
+            - name: CONNECT_TRUSTED_CERTS
+              value: "ca.crt"
+            - name: CONNECT_METRICS_ENABLED
+              value: "true"
+            - name: CONNECT_LOG_LEVEL
+              value: "INFO"
+            - name: CONNECT_PLUGIN_PATH
+              value: "/opt/plugins/redpanda-plugins"
+          volumeMounts:
+            - name: redpanda-default-certs
+              mountPath: "/opt/kafka/connect-certs/"
+              readOnly: true
+            - name: kafka-connect-plugins
+              mountPath: "/opt/plugins"  # mount over the original plugins directory
+              readOnly: true
+      initContainers:
+        - name: aiven-http-sink-installer
+          image: redpandadata/connectors:latest
+          env:
+            - name: AIVEN_HTTP_SINK_VERSION
+              value: 0.6.0
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -xe
+              TARGET_DIR="/mnt/plugins/redpanda-plugins"
+
+              ### Make our plugins directory within our volume and clean it out.
+              mkdir -p "/mnt/plugins/redpanda-plugins"
+              rm -Rf "${TARGET_DIR}"
+
+              ### Fetch the HTTP Sink connector from Github
+              ### note: the redpanda connectors image doesn't have tar, but it has unzip!?
+              cd "/tmp"
+              curl -LO "https://github.com/Aiven-Open/http-connector-for-apache-kafka/releases/download/v${AIVEN_HTTP_SINK_VERSION}/http-connector-for-apache-kafka-${AIVEN_HTTP_SINK_VERSION}.zip"
+              unzip "http-connector-for-apache-kafka-${AIVEN_HTTP_SINK_VERSION}.zip"
+              ls -alF
+              mkdir -p "${TARGET_DIR}/http-connector-for-apache-kafka"
+              for _file in $(ls "http-connector-for-apache-kafka-${AIVEN_HTTP_SINK_VERSION}"); do
+                mv -f "http-connector-for-apache-kafka-${AIVEN_HTTP_SINK_VERSION}/${_file}" "${TARGET_DIR}/http-connector-for-apache-kafka"
+              done
+
+              ### Copy any existing connectors from our Redpanda Kafka Connect image.
+              for plugin in $(ls "${CONNECT_HOME}/redpanda-plugins"); do
+                  cp -R "${CONNECT_HOME}/redpanda-plugins/${plugin}" "${TARGET_DIR}"
+              done
+          volumeMounts:
+            - name: kafka-connect-plugins
+              mountPath: "/mnt/plugins"
+      volumes:
+        - name: redpanda-default-certs
+          secret:
+            items:
+              - key: ca.crt
+                path: ca.crt
+            secretName: redpanda-default-root-certificate
+            defaultMode: 0440
+        - name: kafka-connect-plugins
+          emptyDir:
+            sizeLimit: 100Mi
