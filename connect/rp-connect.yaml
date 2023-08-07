@@ -50,7 +50,7 @@ spec:
               mountPath: "/opt/kafka/connect-certs/"
               readOnly: true
             - name: kafka-connect-plugins
-              mountPath: "/opt/plugins"  # mount over the original plugins directory
+              mountPath: "/opt/plugins"
               readOnly: true
       initContainers:
         - name: aiven-http-sink-installer
