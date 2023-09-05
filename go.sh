@@ -2,7 +2,8 @@
 set -e
 
 DOMAIN="${DOMAIN:-customredpandadomain.local}"
-SERVERS="${SERVERS:-3}"
+AGENTS="${AGENTS:-3}"
+SERVERS="${SERVERS:-1}"
 MEM="${MEM:-3G}"
 TOPIC="${TOPIC:-twitch_chat}"
 
@@ -21,8 +22,8 @@ echo "> Looking for existing k3d Redpanda cluster..."
 if ! k3d cluster list redpanda 2>&1 > /dev/null; then
     echo ">> Creating a new ${SERVERS} node cluster..."
     k3d cluster create redpanda \
-        --servers "${SERVERS}" \
-        --servers-memory "${MEM}" \
+        --servers "${SERVERS}" --agents "${AGENTS}" \
+        --agents-memory "${MEM}" \
         --registry-create rp-registry
 else
     echo ">> Found! Making sure cluster is started..."
